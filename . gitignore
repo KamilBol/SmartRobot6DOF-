@@ -1,0 +1,11 @@
+# Python
+PC_Backend_Python/venv/
+PC_Backend_Python/__pycache__/
+*.env
+
+# PlatformIO / C++
+ESP32_Firmware/.pio/
+
+# OS
+.DS_Store
+Thumbs.db

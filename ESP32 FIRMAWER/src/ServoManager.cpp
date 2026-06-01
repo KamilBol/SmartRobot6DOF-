@@ -112,19 +112,22 @@ void ServoManager::updateInterpolation() {
     }
 }
 
-// ==============================================================================
-// WYMUSZENIE BEZPIECZNEJ POZYCJI DOMOWEJ (HOME) DLA CAŁEGO KORPUSU
-// ==============================================================================
 void ServoManager::moveHomeAll() {
     Serial.println("[SERVO] Wykonuję rozkaz: Sprowadzenie całej konstrukcji do pozycji HOME...");
     
     for (uint8_t i = 0; i < 6; i++) {
-        // Pobieramy cel z pamięci NVS
         targetPositions[i] = activeLimits[i].homeTicks;
         currentPositions[i] = activeLimits[i].homeTicks;
         
-        // TWARDY START: Wymuszenie wysłania fizycznego sygnału PWM do układu PCA9685!
-        // Bez tego serwa były wiotkie, bo interpolator uważał, że już są w celu.
+        // TYMCZASOWA BLOKADA SERWA ID 5 (Prawa Ręka)
+        // Zapobiega spaleniu silnika i spadkom napięcia.
+        if (i == SERVO_R_ARM) {
+            Serial.println("[SERVO_WARN] Omijam twardy start dla Prawej Ręki (ID 5) - Serwo uśpione.");
+            pwm.setPWM(i, 0, 4096); // Wartość 4096 dla PCA9685 to komenda "FULL OFF" (odcięcie zasilania pinu)
+            continue; // Przeskakujemy do następnego serwa
+        }
+        
+        // TWARDY START dla pozostałych serw
         pwm.setPWM(i, 0, targetPositions[i]);
     }
 }

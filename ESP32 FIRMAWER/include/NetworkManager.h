@@ -24,6 +24,7 @@ private:
 
     // Metody prywatne rozruchowe
     void setupAP();
+    void setupSTA(String ssid, String pass); // Nowa metoda łączenia z routerem domowym
     void setupEndpoints();
 
 public:

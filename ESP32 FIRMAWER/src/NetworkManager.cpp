@@ -7,16 +7,62 @@
 NetworkManager::NetworkManager() : server(80), isAPMode(false) {}
 
 // ==============================================================================
-// GŁÓWNA FUNKCJA STARTOWA SIECI
+// GŁÓWNA FUNKCJA STARTOWA SIECI (AUTODECYZJA)
 // ==============================================================================
 void NetworkManager::startSystem(NvsManager* nvs) {
-    nvsRef = nvs; // Przypisanie wskaźnika pamięci Flash
-    
+    nvsRef = nvs; 
     Serial.println("\n[NET] Inicjalizacja podsystemu sieciowego...");
 
-    // UWAGA: Tutaj w przyszłości dodamy logikę odczytu zapisanego hasła z NVS.
-    // Na razie ZAWSZE wymuszamy tryb Access Point, byś mógł przetestować Captive Portal!
-    setupAP();
+    String savedSSID = nvsRef->getWiFiSSID();
+    String savedPass = nvsRef->getWiFiPass();
+
+    // Sprawdzamy czy robot zna sieć domową
+    if (savedSSID.length() > 0) {
+        Serial.println("[NET] Znaleziono zapisane poświadczenia Wi-Fi.");
+        setupSTA(savedSSID, savedPass);
+    } else {
+        Serial.println("[NET] Brak zapisanego Wi-Fi. Uruchamiam konfigurator.");
+        setupAP();
+    }
+}
+
+// ==============================================================================
+// TRYB STATION (ŁĄCZENIE Z DOMOWYM ROUTEREM)
+// ==============================================================================
+void NetworkManager::setupSTA(String ssid, String pass) {
+    isAPMode = false;
+    Serial.printf("[NET_STA] Próba połączenia z domową siecią: %s\n", ssid.c_str());
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid.c_str(), pass.c_str());
+
+    // Czekamy na połączenie
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+        delay(500);
+        Serial.print(".");
+        attempts++;
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("[NET_STA] SUKCES! Robot podłączony do sieci domowej.");
+        Serial.print("[NET_STA] Adres IP w Twojej sieci: ");
+        Serial.println(WiFi.localIP());
+
+        // Usługa mDNS (żeby nie wpisywać IP)
+        if (MDNS.begin("robot")) {
+            Serial.println("[NET_mDNS] Usługa mDNS aktywna! Panel dostępny pod adresem: http://robot.local");
+            MDNS.addService("http", "tcp", 80);
+        }
+
+        setupEndpoints();
+        server.begin();
+    } else {
+        Serial.println("[NET_ERR] Nie udało się połączyć z domowym Wi-Fi! Złe hasło lub brak zasięgu.");
+        Serial.println("[NET_ERR] Uruchamiam Tryb Ratunkowy (Access Point)...");
+        setupAP();
+    }
 }
 
 // ==============================================================================
@@ -24,26 +70,15 @@ void NetworkManager::startSystem(NvsManager* nvs) {
 // ==============================================================================
 void NetworkManager::setupAP() {
     isAPMode = true;
-    Serial.println("[NET_AP] Przechodzę w tryb Access Point (Punkt Dostępowy).");
+    Serial.println("[NET_AP] Stawiam własny Punkt Dostępowy: 🤖 _SmartRobot_Setup");
 
-    // Tworzenie otwartej sieci Wi-Fi bez hasła
     WiFi.mode(WIFI_AP);
     WiFi.softAP("🤖 _SmartRobot_Setup");
 
-    Serial.print("[NET_AP] Adres IP robota: ");
-    Serial.println(WiFi.softAPIP());
-
-    // Uruchomienie serwera DNS (nasłuch na porcie 53)[cite: 186].
-    // Gwiazdka "*" oznacza, że KAŻDE zapytanie z Twojego telefonu o dowolną 
-    // stronę (np. google.com) zostanie przekierowane na IP robota (Captive Portal)[cite: 186, 187].
     dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-
-    // Konfiguracja tras URL
     setupEndpoints();
-
-    // Start serwera asynchronicznego
     server.begin();
-    Serial.println("[NET_AP] Captive Portal aktywny. Połącz się z siecią robota!");
+    Serial.println("[NET_AP] Captive Portal aktywny. Czekam na dane logowania.");
 }
 
 // ==============================================================================
@@ -51,29 +86,30 @@ void NetworkManager::setupAP() {
 // ==============================================================================
 void NetworkManager::setupEndpoints() {
     
-    // Główny Handler dla Captive Portal (ON_NOT_FOUND) [cite: 188]
-    // Jeśli telefon szuka czegokolwiek w sieci, ładujemy mu naszą stronę z PROGMEM[cite: 189].
     server.onNotFound([](AsyncWebServerRequest *request){
         request->send_P(200, "text/html", SETUP_HTML);
     });
 
-    // Endpoint odbierający formularz z nowymi danymi Wi-Fi (żądanie POST) [cite: 190]
-    server.on("/connect", HTTP_POST, [](AsyncWebServerRequest *request){
+    server.on("/connect", HTTP_POST, [this](AsyncWebServerRequest *request){
         String ssid = "";
         String pass = "";
         
-        // Wyciąganie parametrów z zapytania
         if(request->hasParam("ssid", true)) { ssid = request->getParam("ssid", true)->value(); }
         if(request->hasParam("pass", true)) { pass = request->getParam("pass", true)->value(); }
 
-        Serial.println("\n[NET_AP] --- OTRZYMANO DANE KONFIGURACYJNE ---");
-        Serial.printf("SSID: %s\n", ssid.c_str());
-        Serial.printf("PASS: %s\n", pass.c_str());
-        Serial.println("----------------------------------------------\n");
-
-        request->send(200, "text/html", "<h2 style='color:green; text-align:center;'>Dane odebrane! Sprawdz monitor portu szeregowego.</h2>");
-        
-        // W przyszłości tutaj przekażemy te dane do NvsManager i zrobimy ESP.restart() [cite: 191]
+        if (ssid.length() > 0) {
+            Serial.println("\n[NET_AP] --- OTRZYMANO DANE KONFIGURACYJNE ---");
+            Serial.printf("SSID: %s\n", ssid.c_str());
+            
+            request->send(200, "text/html", "<h2 style='color:green; text-align:center;'>Dane zapisane! Robot laczy sie z domowa siecia. Odswiez przegladarke za 10 sekund (http://robot.local).</h2>");
+            
+            // ZAPIS I TWARDY RESTART PROCESORA
+            nvsRef->saveWiFi(ssid, pass);
+            delay(1000);
+            ESP.restart(); 
+        } else {
+            request->send(400, "text/html", "<h2 style='color:red; text-align:center;'>Blad: Brak nazwy sieci! Wroc i sprobuj ponownie.</h2>");
+        }
     });
 }
 
@@ -81,7 +117,6 @@ void NetworkManager::setupEndpoints() {
 // TAKTOWANIE SIECI (W PĘTLI MAIN)
 // ==============================================================================
 void NetworkManager::process() {
-    // Serwer DNS (odpowiedzialny za Captive Portal) wymaga ciągłego odświeżania w trybie AP [cite: 217]
     if (isAPMode) {
         dnsServer.processNextRequest();
     }

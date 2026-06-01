@@ -117,4 +117,28 @@ bool NvsManager::saveServoLimits(uint8_t servoId, ServoBounds bounds) {
     }
 
     return true;
+
+}
+
+// ==============================================================================
+// OBSŁUGA POŚWIADCZEŃ SIECI WI-FI (NVS)
+// ==============================================================================
+void NvsManager::saveWiFi(String ssid, String pass) {
+    preferences.putString("wifi_ssid", ssid);
+    preferences.putString("wifi_pass", pass);
+    Serial.println("[NVS] Zapisano nowe poświadczenia Wi-Fi do pamięci Flash.");
+}
+
+String NvsManager::getWiFiSSID() {
+    return preferences.getString("wifi_ssid", ""); 
+}
+
+String NvsManager::getWiFiPass() {
+    return preferences.getString("wifi_pass", "");
+}
+
+void NvsManager::clearWiFi() {
+    preferences.remove("wifi_ssid");
+    preferences.remove("wifi_pass");
+    Serial.println("[NVS] Trwale usunięto poświadczenia Wi-Fi z pamięci.");
 }

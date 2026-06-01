@@ -20,6 +20,12 @@ public:
     bool init();
     ServoBounds loadServoLimits(uint8_t servoId);
     bool saveServoLimits(uint8_t servoId, ServoBounds bounds);
+
+    // Nowe metody do obsługi sieci Wi-Fi w pamięci Flash
+    void saveWiFi(String ssid, String pass);
+    String getWiFiSSID();
+    String getWiFiPass();
+    void clearWiFi();
 };
 
 #endif

@@ -87,7 +87,7 @@ void NetworkManager::setupAP() {
 void NetworkManager::setupEndpoints() {
     
     server.onNotFound([](AsyncWebServerRequest *request){
-        request->send_P(200, "text/html", SETUP_HTML);
+        request->send(200, "text/html", SETUP_HTML);
     });
 
     server.on("/connect", HTTP_POST, [this](AsyncWebServerRequest *request){

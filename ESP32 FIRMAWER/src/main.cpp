@@ -2,7 +2,7 @@
 #include "config.h"
 #include "NvsManager.h"
 #include "ServoManager.h"
-#include "NetworkManager.h
+#include "NetworkManager.h"
 
 // ==============================================================================
 // DEFINICJA MASZYNY STANÓW (FINITE STATE MACHINE)

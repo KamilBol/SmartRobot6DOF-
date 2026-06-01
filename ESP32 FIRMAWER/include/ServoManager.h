@@ -37,6 +37,8 @@ private:
     // Wartość 15ms zapewnia płynny ruch przy częstotliwości pracy serw 50Hz (20ms okres).
     const uint8_t SWEEP_INTERVAL_MS = 15;
 
+    void waitAndInterpolate(unsigned long ms);
+
 public:
     // Konstruktor klasy
     ServoManager();
@@ -60,6 +62,10 @@ public:
 
     // Rozkaz ratunkowy/resetujący: Natychmiast ustawia wszystkie serwa w bezpiecznych pozycjach HOME.
     void moveHomeAll();
+
+    // Sekwencja testowa/powitalna: Wykonuje płynne ruchy wszystkimi stawami po kolei.
+    // ZAPROJEKTOWANA DO DIAGNOSTYKI MECHANIKI I EFEKTU WIZUALNEGO.
+    void executeCalibrationDance();
 };
 
 #endif

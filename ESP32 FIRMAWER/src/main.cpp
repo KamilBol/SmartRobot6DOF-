@@ -64,14 +64,22 @@ void setup() {
         servo.setSoftwareLimits(i, bounds);
     }
 
-    // 4. Sprzętowe zabezpieczenie struktury (Haptic Boot)
-    // Zlecamy płynny powrót wszystkich serwomechanizmów do fizycznego pionu (HOME).
-    // Zapobiega to uszkodzeniu obudowy lub zębatek.
+    // 4. Sprzętowe zabezpieczenie struktury i Test Kinematyki
+    Serial.println("[SYSTEM] Ustawianie w pionie i przygotowanie do testu ruchu...");
     servo.moveHomeAll();
+    
+    // Niestety, proste delay() zablokowałoby nam asynchroniczny interpolator.
+    // Używamy więc małej pętli testowej, która kręci interpolatorem w trakcie opóźnień.
+    unsigned long startTest = millis();
+    while(millis() - startTest < 1000) { servo.updateInterpolation(); } 
+    
+    // Odpalenie sekwencyjnego tańca diagnostycznego
+    servo.executeCalibrationDance();
 
     // 5. Uruchomienie zakończone sukcesem – maszyna przechodzi w tryb nasłuchu
     transitionTo(RobotState::IDLE);
     Serial.println("[SYSTEM] Robot gotowy do pracy, maszyna stanów aktywna.");
+}
 }
 
 // ==============================================================================

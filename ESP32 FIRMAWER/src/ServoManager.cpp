@@ -131,4 +131,59 @@ void ServoManager::moveHomeAll() {
         lastMoveTime[i] = millis();
         pwm.setPWM(i, 0, targetPositions[i]);
     }
+}// Pomocnicza funkcja blokująca, która pozwala na ruch asynchroniczny
+void ServoManager::waitAndInterpolate(unsigned long ms) {
+    unsigned long start = millis();
+    while (millis() - start < ms) {
+        updateInterpolation();
+        delay(1); // Mała pauza, żeby watchdog nie zwariował
+    }
+}
+
+// ==============================================================================
+// SEKWENCJA TESTOWA (TANIEC DIAGNOSTYCZNY)
+// ==============================================================================
+void ServoManager::executeCalibrationDance() {
+    Serial.println("[SERVO] Rozpoczynam sekwencję tańca kalibracyjnego...");
+
+    // Stopy
+    setServoTicksDirect(SERVO_L_FOOT, 240);
+    setServoTicksDirect(SERVO_R_FOOT, 370);
+    waitAndInterpolate(1000);
+    
+    setServoTicksDirect(SERVO_L_FOOT, 370);
+    setServoTicksDirect(SERVO_R_FOOT, 240);
+    waitAndInterpolate(1000);
+    
+    setServoTicksDirect(SERVO_L_FOOT, 307);
+    setServoTicksDirect(SERVO_R_FOOT, 307);
+    waitAndInterpolate(1000);
+
+    // Nogi
+    setServoTicksDirect(SERVO_L_LEG, 240);
+    setServoTicksDirect(SERVO_R_LEG, 370);
+    waitAndInterpolate(1000);
+    
+    setServoTicksDirect(SERVO_L_LEG, 370);
+    setServoTicksDirect(SERVO_R_LEG, 240);
+    waitAndInterpolate(1000);
+    
+    setServoTicksDirect(SERVO_L_LEG, 307);
+    setServoTicksDirect(SERVO_R_LEG, 307);
+    waitAndInterpolate(1000);
+
+    // Ręce (Większy ruch)
+    setServoTicksDirect(SERVO_L_ARM, 220);
+    setServoTicksDirect(SERVO_R_ARM, 390);
+    waitAndInterpolate(1000);
+    
+    setServoTicksDirect(SERVO_L_ARM, 390);
+    setServoTicksDirect(SERVO_R_ARM, 220);
+    waitAndInterpolate(1000);
+    
+    setServoTicksDirect(SERVO_L_ARM, 307);
+    setServoTicksDirect(SERVO_R_ARM, 307);
+    waitAndInterpolate(1500); // Czas na powrót i uspokojenie
+    
+    Serial.println("[SERVO] Taniec zakończony.");
 }

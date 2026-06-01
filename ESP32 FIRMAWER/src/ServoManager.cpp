@@ -118,10 +118,13 @@ void ServoManager::updateInterpolation() {
 void ServoManager::moveHomeAll() {
     Serial.println("[SERVO] Wykonuję rozkaz: Sprowadzenie całej konstrukcji do pozycji HOME...");
     
-    // Ustawiamy wartości domyślne dla wszystkich 6 osi z ich zapamiętanych profili
     for (uint8_t i = 0; i < 6; i++) {
+        // Pobieramy cel z pamięci NVS
         targetPositions[i] = activeLimits[i].homeTicks;
+        currentPositions[i] = activeLimits[i].homeTicks;
+        
+        // TWARDY START: Wymuszenie wysłania fizycznego sygnału PWM do układu PCA9685!
+        // Bez tego serwa były wiotkie, bo interpolator uważał, że już są w celu.
+        pwm.setPWM(i, 0, targetPositions[i]);
     }
-    
-    // Ruch odbędzie się asynchronicznie, co pozwoli konstrukcji robota wstać płynnie bez szarpnięcia prądem
 }

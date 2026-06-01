@@ -16,13 +16,12 @@
 // Bezpieczny margines z odciętym 10% to: 190 - 410.
 // =================================================================================================
 const ServoBounds SAFE_DEFAULTS[6] = {
-    // ID |  MIN   |  MAX   | HOME (Środek) | OPIS (Zmieniaj te wartości dla każdego serwa z osobna)
-    /* 0 */ { 190,     410,     307 },     // ⬅️ Lewa Stopa
-    /* 1 */ { 190,     410,     307 },     // ➡️ Prawa Stopa
-    /* 2 */ { 190,     410,     307 },     // ⬅️ Lewa Noga
-    /* 3 */ { 190,     410,     307 },     // ➡️ Prawa Noga
-    /* 4 */ { 190,     410,     307 },     // ⬅️ Lewa Ręka
-    /* 5 */ { 190,     410,     307 }      // ➡️ Prawa Ręka
+    /* 0 */ { 180,     430,     307 },     // ⬅️ Lewa Stopa
+    /* 1 */ { 180,     430,     307 },     // ➡️ Prawa Stopa
+    /* 2 */ { 180,     430,     307 },     // ⬅️ Lewa Noga
+    /* 3 */ { 180,     430,     307 },     // ➡️ Prawa Noga
+    /* 4 */ { 180,     430,     307 },     // ⬅️ Lewa Ręka
+    /* 5 */ { 180,     430,     307 }      // ➡️ Prawa Ręka
 };
 
 
@@ -44,9 +43,7 @@ bool NvsManager::init() {
 // WEWNĘTRZNA FUNKCJA WALIDUJĄCA (SANITY CHECK)
 // ==============================================================================
 bool NvsManager::validateLimits(ServoBounds bounds) {
-    // Twarde ograniczenia chroniące serwa przed Stall Current. 
-    // Odcięte dodatkowe 10% zakresu (Granice bezwzględne: 190 - 410)
-    if (bounds.minTicks < 190 || bounds.maxTicks > 410) {
+    if (bounds.minTicks < 180 || bounds.maxTicks > 430) {
         return false;
     }
     

@@ -28,4 +28,12 @@
 #define SPK_LRC 18
 #define SPK_DIN 21
 
+// --- ZMYSŁY I SENSORY ---
+#define TOUCH_PIN 4
+#define TRIG_PIN 5
+#define ECHO_PIN 6
+#define MIC_SCK 14
+#define MIC_WS 15
+#define MIC_SD 16
+
 #endif

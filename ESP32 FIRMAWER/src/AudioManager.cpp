@@ -29,11 +29,11 @@ bool AudioManager::init() {
 
     // 2. Inicjalizacja wyjścia cyfrowego I2S do MAX98357A
     // Parametr (0, 1) oznacza użycie wbudowanych przetworników wewnętrznych procesora, szyna I2S_NUM_1
-    out = new AudioOutputI2S(0, 1); 
+    oout = new AudioOutputI2S(0, 1); 
     out->SetPinout(SPK_BCLK, SPK_LRC, SPK_DIN);
     
-    // Zwiększenie sprzętowe gainu (zgodnie z uciętym rezystorem 100k na płytce audio)
-    out->SetGain(2.5); 
+    // W pełni sprzętowe wzmocnienie na module, mikrokontroler podaje czysty sygnał 1.0
+    out->SetGain(1.0);
     
     Serial.println("[AUDIO] Wzmacniacz akustyczny I2S gotowy.");
     return true;

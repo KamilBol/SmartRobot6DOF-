@@ -3,13 +3,15 @@
 #include "NvsManager.h"
 #include "ServoManager.h"
 #include "NetworkManager.h"
+#include "AudioManager.h"
 
 // ==============================================================================
 // DEFINICJA MASZYNY STANÓW (FINITE STATE MACHINE)
 // ==============================================================================
 enum class RobotState : uint8_t {
-    BOOT,   // Stan początkowy
-    IDLE    // Oczekiwanie
+    BOOT,   
+    IDLE,
+    SPEAKING 
 };
 
 // ==============================================================================
@@ -18,7 +20,8 @@ enum class RobotState : uint8_t {
 RobotState currentState = RobotState::BOOT;
 NvsManager nvs;
 ServoManager servo;
-NetworkManager net; // <--- Dodajemy obiekt sieciowy
+NetworkManager net; 
+AudioManager audio; // <--- Menedżer dźwięku
 
 // ==============================================================================
 // FUNKCJA BEZPIECZNEJ ZMIANY STANÓW
@@ -73,8 +76,16 @@ void setup() {
     // Odpalenie sekwencyjnego tańca diagnostycznego
     servo.executeCalibrationDance();
 
-    // 5. Start Infrastruktury Sieciowej
+    // 5. Inicjalizacja Podsystemu Audio (I2S1, Karta SD)
+    if (!audio.init()) {
+        Serial.println("[ERR] Podsystem audio zawiódł, uruchamiam bez dźwięku.");
+    }
+
+    // 6. Start Infrastruktury Sieciowej
     net.startSystem(&nvs);
+    
+    // Głosowy test sprawności układu! Zrób plik test.mp3 na karcie SD, by usłyszeć bota po starcie!
+    audio.playFile("/test.mp3");
 
     // 6. Maszyna przechodzi w tryb nasłuchu
     transitionTo(RobotState::IDLE);
@@ -85,6 +96,9 @@ void setup() {
 // ASYNCHRONICZNA PĘTLA GŁÓWNA (ZERO-BLOCKING ROUTINE)
 // ==============================================================================
 void loop() {
+    // BEZWARUNKOWE, ASYNCHRONICZNE ODŚWIEŻANIE DEKODERA AUDIO (I2S DMA)
+    audio.process();
+
     // BEZWARUNKOWE TAKTOWANIE RUCHU I USYPIANIA (SERVO SWEEPING & AUTO-SLEEP)
     servo.updateInterpolation();
 

@@ -17,4 +17,15 @@
 #define HARD_LIMIT_MIN 150
 #define HARD_LIMIT_MAX 450
 
+// Pamięć Awaryjna (Magistrala SPI): Czytnik MicroSD [cite: 19-25]
+#define SD_CS 10
+#define SD_MOSI 11
+#define SD_SCK 12
+#define SD_MISO 13
+
+// Usta (Magistrala I2S1): Wzmacniacz Audio MAX98357A [cite: 33-38]
+#define SPK_BCLK 17
+#define SPK_LRC 18
+#define SPK_DIN 21
+
 #endif

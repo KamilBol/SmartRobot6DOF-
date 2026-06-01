@@ -26,6 +26,10 @@ private:
     // targetPositions - przechowuje pozycję, do której robot ma dążyć w tle
     int16_t targetPositions[6];
 
+    // Zmienne do usypiania serw (Auto-Sleep / Anti-Buzz) po osiągnięciu celu
+    unsigned long lastMoveTime[6];
+    bool isRelaxed[6];
+
     // Stoper (timer) sprzętowy oparty na funkcji millis() do regulacji prędkości ruchu
     unsigned long lastUpdateTime;
     

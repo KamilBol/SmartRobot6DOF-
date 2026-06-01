@@ -10,6 +10,8 @@ ServoManager::ServoManager() : pwm(Adafruit_PWMServoDriver()) {
     for (int i = 0; i < 6; i++) {
         currentPositions[i] = 307; // 307 to bezpieczny środek (HOME) w Ticks dla SG90
         targetPositions[i] = 307;
+        lastMoveTime[i] = 0;
+        isRelaxed[i] = false;
     }
 }
 
@@ -71,11 +73,13 @@ void ServoManager::setServoAngle(uint8_t servoId, int16_t angle) {
 void ServoManager::setServoTicksDirect(uint8_t servoId, int16_t ticks) {
     if (servoId > 5) return;
 
-    // TWARDY ZAMEK (SafeClamp): Przed nadpisaniem celu wykonujemy ostateczne cięcie wartości do limitów z NVS.
-    // Zapewnia to, że cokolwiek (frontend WWW, AI czy zły kod) nie zażąda zniszczenia mechaniki.
     ticks = constrain(ticks, activeLimits[servoId].minTicks, activeLimits[servoId].maxTicks);
+    
+    // Jeśli zlecamy serwu nowy cel, wybudzamy je z uśpienia (wyłączamy relax)
+    if (targetPositions[servoId] != ticks || currentPositions[servoId] != ticks) {
+        isRelaxed[servoId] = false;
+    }
 
-    // Zapisujemy nowy, bezpieczny cel w tablicy. Faktyczny ruch wykona asynchroniczna funkcja updateInterpolation()
     targetPositions[servoId] = ticks;
 }
 
@@ -83,35 +87,38 @@ void ServoManager::setServoTicksDirect(uint8_t servoId, int16_t ticks) {
 // ASYNCHRONICZNY INTERPOLATOR RUCHU (SERCE PŁYNNEJ KINEMATYKI)
 // ==============================================================================
 void ServoManager::updateInterpolation() {
-    // Sprawdzamy czy minął określony czas (15 milisekund). Używamy funkcji millis(),
-    // która NIE BLOKUJE procesora w przeciwieństwie do złej funkcji delay().
     if (millis() - lastUpdateTime >= SWEEP_INTERVAL_MS) {
-        
-        // Aktualizacja stopera dla kolejnej iteracji
         lastUpdateTime = millis();
 
-        // Przeszukujemy (iterujemy) po wszystkich 6 obsługiwanych serwach
         for (uint8_t i = 0; i < 6; i++) {
-            
-            // Jeśli aktualna pozycja ramienia nie zgadza się z pozycją docelową...
+            // Jeśli serwo NIE JEST w celu, wykonujemy mikrokrok (ruch)
             if (currentPositions[i] != targetPositions[i]) {
+                isRelaxed[i] = false; // Wybudzenie podczas ruchu
                 
-                // ...wykonaj JEDEN mikrokrok w kierunku celu.
-                // Jeśli cel jest większy niż obecna pozycja -> dodaj 1 Ticks.
-                // Jeśli cel jest mniejszy -> odejmij 1 Ticks.
                 if (currentPositions[i] < targetPositions[i]) {
                     currentPositions[i]++; 
                 } else {
                     currentPositions[i]--;
                 }
-
-                // Bezpośrednia, sprzętowa komenda do kontrolera PCA9685 nakazująca ustawienie ramienia
                 pwm.setPWM(i, 0, currentPositions[i]);
+                lastMoveTime[i] = millis(); // Resetujemy stoper uśpienia
+            } 
+            // Jeśli serwo OSIĄGNĘŁO CEL, czeka 1 sekundę i się usypia (ODCIĘCIE BZYCZENIA)
+            else {
+                if (!isRelaxed[i] && (millis() - lastMoveTime[i] > 1000)) {
+                    // Komenda 4096 dla PCA9685 to sygnał sprzętowy FULL-OFF (Całkowite odcięcie sygnału PWM)
+                    pwm.setPWM(i, 0, 4096); 
+                    isRelaxed[i] = true;
+                    Serial.printf("[SERVO] Serwo ID:%d w pozycji celu. Odcięto prąd (Auto-Sleep).\n", i);
+                }
             }
         }
     }
 }
 
+// ==============================================================================
+// WYMUSZENIE BEZPIECZNEJ POZYCJI DOMOWEJ (HOME) DLA CAŁEGO KORPUSU
+// ==============================================================================
 void ServoManager::moveHomeAll() {
     Serial.println("[SERVO] Wykonuję rozkaz: Sprowadzenie całej konstrukcji do bezpiecznej pozycji HOME...");
     
@@ -119,7 +126,9 @@ void ServoManager::moveHomeAll() {
         targetPositions[i] = activeLimits[i].homeTicks;
         currentPositions[i] = activeLimits[i].homeTicks;
         
-        // Zabezpieczenia z NVS gwarantują teraz bezpieczny, twardy start dla każdego stawu
+        // Twardy start i reset blokady czasowej
+        isRelaxed[i] = false;
+        lastMoveTime[i] = millis();
         pwm.setPWM(i, 0, targetPositions[i]);
     }
 }

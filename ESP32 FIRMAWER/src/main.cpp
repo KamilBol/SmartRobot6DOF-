@@ -2,6 +2,7 @@
 #include "config.h"
 #include "NvsManager.h"
 #include "ServoManager.h"
+#include "NetworkManager.h
 
 // ==============================================================================
 // DEFINICJA MASZYNY STANÓW (FINITE STATE MACHINE)
@@ -17,6 +18,7 @@ enum class RobotState : uint8_t {
 RobotState currentState = RobotState::BOOT;
 NvsManager nvs;
 ServoManager servo;
+NetworkManager net; // <--- Dodajemy obiekt sieciowy
 
 // ==============================================================================
 // FUNKCJA BEZPIECZNEJ ZMIANY STANÓW
@@ -71,7 +73,10 @@ void setup() {
     // Odpalenie sekwencyjnego tańca diagnostycznego
     servo.executeCalibrationDance();
 
-    // 5. Maszyna przechodzi w tryb nasłuchu
+    // 5. Start Infrastruktury Sieciowej
+    net.startSystem(&nvs);
+
+    // 6. Maszyna przechodzi w tryb nasłuchu
     transitionTo(RobotState::IDLE);
     Serial.println("[SYSTEM] Robot gotowy do pracy, maszyna stanów aktywna.");
 }
@@ -82,6 +87,9 @@ void setup() {
 void loop() {
     // BEZWARUNKOWE TAKTOWANIE RUCHU I USYPIANIA (SERVO SWEEPING & AUTO-SLEEP)
     servo.updateInterpolation();
+
+    // ASYNCHRONICZNE PRZETWARZANIE PAKIETÓW SIECIOWYCH
+    net.process();
 
     // ROUTING ZDARZEŃ W ZALEŻNOŚCI OD OBECNEGO STANU
     switch (currentState) {

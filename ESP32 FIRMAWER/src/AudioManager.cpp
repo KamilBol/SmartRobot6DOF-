@@ -28,9 +28,7 @@ bool AudioManager::init() {
     Serial.println("[AUDIO] Karta MicroSD (FAT32) zamontowana poprawnie.");
 
     // 2. Inicjalizacja wyjścia cyfrowego I2S do MAX98357A
-    // Parametr (0, 1) oznacza użycie wbudowanych przetworników wewnętrznych procesora, szyna I2S_NUM_1
-    out = new AudioOutputI2S(0, 1); 
-    out->SetPinout(SPK_BCLK, SPK_LRC, SPK_DIN);
+    out = new AudioOutputI2S(1, AudioOutputI2S::EXTERNAL_I2S);
     
     // W pełni sprzętowe wzmocnienie na module, mikrokontroler podaje czysty sygnał 1.0
     out->SetGain(1.0);

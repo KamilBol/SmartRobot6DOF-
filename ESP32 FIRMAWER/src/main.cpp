@@ -80,7 +80,7 @@ void setup() {
 
     if (!audio.init()) Serial.println("[ERR] Błąd modułu Audio/SD.");
     initMicrophone();
-    net.startSystem(&nvs);
+    net.startSystem(&nvs, &servo); // Przekazujemy wskaźnik do serw, aby WebApp mógł nimi ruszać
 
     transitionTo(RobotState::IDLE);
     Serial.println("[SYSTEM] Operacja zasilania ukończona. Robot w trybie nasłuchu (IDLE).");

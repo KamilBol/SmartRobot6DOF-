@@ -7,35 +7,30 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include "NvsManager.h"
+#include "ServoManager.h"
 #include "WebPages.h"
 
-// ==============================================================================
-// KLASA ZARZĄDZAJĄCA KOMUNIKACJĄ SIECIOWĄ (Zasada izolacji domen)
-// ==============================================================================
 class NetworkManager {
 private:
-    // Enkapsulacja obiektów - nikt spoza tej klasy nie ma do nich dostępu
     AsyncWebServer server;
+    AsyncWebSocket ws; // NOWOŚĆ: Serwer czasu rzeczywistego (Etap 3)
     DNSServer dnsServer;
-    NvsManager* nvsRef; // Wskaźnik do naszego menedżera pamięci
+    
+    NvsManager* nvsRef; 
+    ServoManager* servoRef; // NOWOŚĆ: Wskaźnik, żeby sieć mogła ruszać ramionami
     
     bool isAPMode;
     const byte DNS_PORT = 53;
 
-    // Metody prywatne rozruchowe
     void setupAP();
-    void setupSTA(String ssid, String pass); // Nowa metoda łączenia z routerem domowym
+    void setupSTA(String ssid, String pass);
     void setupEndpoints();
 
 public:
-    // Konstruktor inicjalizuje serwer WWW na porcie 80
     NetworkManager();
-
-    // Główna funkcja startowa wywoływana w main.cpp
-    void startSystem(NvsManager* nvs);
-
-    // Taktowanie serwera DNS w pętli loop() - wymagane dla Captive Portal
-    void process();
+    void startSystem(NvsManager* nvs, ServoManager* servo);
+    void process(); 
+    void broadcastText(String msg); // Wysyłanie logów na ekran komputera
 };
 
 #endif

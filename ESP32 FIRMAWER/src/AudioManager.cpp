@@ -17,31 +17,32 @@ AudioManager::AudioManager() {
 bool AudioManager::init() {
     Serial.println("[AUDIO] Inicjalizacja podsystemu (SPI & I2S)...");
 
-    // 1. Uruchomienie karty SD z niestandardowymi pinami na magistrali VSPI
+    // 1. Uruchomienie karty SD (BEZPIECZNA PRĘDKOŚĆ Z TWOJEGO TESTU)
     SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-    
-    // Prędkość 40MHz dla szybkiego czytania MP3/WAV
-    if (!SD.begin(SD_CS, SPI, 40000000)) {
+    if (!SD.begin(SD_CS, SPI)) {
         Serial.println("[AUDIO_ERR] Brak karty SD lub błąd odczytu magistrali SPI!");
         return false;
     }
-    Serial.println("[AUDIO] Karta MicroSD (FAT32) zamontowana poprawnie.");
+    Serial.println("[AUDIO] Karta MicroSD zamontowana poprawnie.");
 
-    // 2. Inicjalizacja wyjścia cyfrowego I2S do MAX98357A
-    out = new AudioOutputI2S(1, AudioOutputI2S::EXTERNAL_I2S);
+    // 2. TWORZYMY DEKODERY TYLKO RAZ (Dokładnie tak, jak w Twoim testowym kodzie)
+    wav = new AudioGeneratorWAV();
+    mp3 = new AudioGeneratorMP3();
     
-    // W pełni sprzętowe wzmocnienie na module, mikrokontroler podaje czysty sygnał 1.0
-    out->SetGain(1.0);
+    // 3. Inicjalizacja I2S z dokładnie tą samą flagą EXTERNAL_I2S
+    out = new AudioOutputI2S(1, AudioOutputI2S::EXTERNAL_I2S); 
+    out->SetPinout(SPK_BCLK, SPK_LRC, SPK_DIN);
+    out->SetGain(1.0); // Wzmacniacz sprzętowy na maxa, procek podaje czysty dźwięk
     
-    Serial.println("[AUDIO] Wzmacniacz akustyczny I2S gotowy.");
+    Serial.println("[AUDIO] Wzmacniacz akustyczny I2S gotowy (Port 1).");
     return true;
 }
 
 // ==============================================================================
-// URUCHOMIENIE ODTWARZANIA DŹWIĘKU (PARSER)
+// URUCHOMIENIE ODTWARZANIA DŹWIĘKU
 // ==============================================================================
 void AudioManager::playFile(const char* path) {
-    stopAll(); // Czyszczenie starych buforów
+    stopAll(); // Zatrzymuje aktualny dźwięk i uwalnia sprzętowy bufor czytnika
 
     Serial.printf("[AUDIO] Żądanie odtworzenia pliku: %s\n", path);
 
@@ -50,19 +51,24 @@ void AudioManager::playFile(const char* path) {
         return;
     }
 
+    // Ładujemy plik ze stabilnej szyny SPI
     source = new AudioFileSourceSD(path);
     String pathStr = String(path);
     pathStr.toLowerCase();
 
-    // Dynamiczny routing dekodera
+    // Rzutowanie na odpowiedni dekoder
     if (pathStr.endsWith(".wav")) {
-        wav = new AudioGeneratorWAV();
-        wav->begin(source, out);
-        isPlayingWav = true;
+        if (!wav->begin(source, out)) {
+            Serial.println("[AUDIO_ERR] Błąd dekodera WAV! I2S odrzucił parametry pliku.");
+        } else {
+            isPlayingWav = true;
+        }
     } else if (pathStr.endsWith(".mp3")) {
-        mp3 = new AudioGeneratorMP3();
-        mp3->begin(source, out);
-        isPlayingMp3 = true;
+        if (!mp3->begin(source, out)) {
+            Serial.println("[AUDIO_ERR] Błąd dekodera MP3!");
+        } else {
+            isPlayingMp3 = true;
+        }
     } else {
         Serial.println("[AUDIO_ERR] Zły format pliku! Obsługiwane tylko .mp3 i .wav");
         stopAll();
@@ -73,46 +79,38 @@ void AudioManager::playFile(const char* path) {
 // ASYNCHRONICZNY SILNIK ODTWARZACZA (ZERO-BLOCKING)
 // ==============================================================================
 void AudioManager::process() {
-    if (isPlayingWav && wav) {
-        if (wav->isRunning()) {
-            if (!wav->loop()) { // Wrzuca kolejną paczkę bajtów do I2S
-                wav->stop();
-                isPlayingWav = false;
-                Serial.println("[AUDIO] Zakończono plik WAV.");
-            }
+    if (isPlayingWav && wav->isRunning()) {
+        if (!wav->loop()) {
+            wav->stop(); // Zatrzymuje I2S
+            isPlayingWav = false;
+            Serial.println("[AUDIO] Zakończono odtwarzanie pliku WAV.");
         }
     }
     
-    if (isPlayingMp3 && mp3) {
-        if (mp3->isRunning()) {
-            if (!mp3->loop()) {
-                mp3->stop();
-                isPlayingMp3 = false;
-                Serial.println("[AUDIO] Zakończono plik MP3.");
-            }
+    if (isPlayingMp3 && mp3->isRunning()) {
+        if (!mp3->loop()) {
+            mp3->stop();
+            isPlayingMp3 = false;
+            Serial.println("[AUDIO] Zakończono odtwarzanie pliku MP3.");
         }
     }
 }
 
 // ==============================================================================
-// ZATRZYMANIE I ZWOLNIENIE PAMIĘCI RAM (CZYSZCZENIE)
+// ZATRZYMANIE I ZWOLNIENIE PAMIĘCI RAM
 // ==============================================================================
 void AudioManager::stopAll() {
-    if (wav) {
-        if (wav->isRunning()) wav->stop();
-        delete wav;
-        wav = nullptr;
-    }
-    if (mp3) {
-        if (mp3->isRunning()) mp3->stop();
-        delete mp3;
-        mp3 = nullptr;
-    }
+    // Delikatne zatrzymanie dekoderów
+    if (wav && wav->isRunning()) wav->stop();
+    if (mp3 && mp3->isRunning()) mp3->stop();
+    
+    // Zwalnianie uchwytu pliku z pamięci RAM (żeby zapobiec wyciekom pamięci)
     if (source) {
         source->close();
         delete source;
         source = nullptr;
     }
+    
     isPlayingWav = false;
     isPlayingMp3 = false;
 }

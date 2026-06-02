@@ -81,6 +81,15 @@ void NetworkManager::setupEndpoints() {
                     int16_t val = msg.substring(msg.indexOf(":")+1).toInt();
                     if(servoRef) servoRef->setServoTicksDirect(id, val); // Natychmiastowy ruch serwa!
                 }
+                if(servoRef) servoRef->setServoTicksDirect(id, val); // Natychmiastowy ruch serwa!
+                }
+                // === WKLEJASZ TEN NOWY FRAGMENT PONIŻEJ ===
+                else if (msg.startsWith("SPD:")) {
+                    uint8_t spd = msg.substring(4).toInt();
+                    if(servoRef) servoRef->setSpeed(spd);
+                    Serial.printf("[SERVO] Zmiana predkosci globalnej na: %d ms\n", spd);
+                }
+                // === KONIEC NOWEGO FRAGMENTU ===
                 // Obsługa zapisu limitów do pamięci NVS
                 else if (msg.startsWith("CFG:")) {
                     int p1 = msg.indexOf(':');
@@ -148,6 +157,35 @@ void NetworkManager::setupEndpoints() {
                 request->_tempFile.close();
                 Serial.printf("[FILE_SERVER] Zapisano plik na SD: %s (Bajtów: %u)\n", filename.c_str(), index+len);
             }
+        }
+    });
+    // Zwraca listę plików z karty SD w formacie JSON
+    server.on("/api/files", HTTP_GET, [](AsyncWebServerRequest *request){
+        String json = "[";
+        File root = SD.open("/");
+        File file = root.openNextFile();
+        bool first = true;
+        while(file){
+            if(!file.isDirectory()){
+                if(!first) json += ",";
+                json += "{\"name\":\"" + String(file.name()) + "\",\"size\":" + String(file.size()) + "}";
+                first = false;
+            }
+            file = root.openNextFile();
+        }
+        json += "]";
+        request->send(200, "application/json", json);
+    });
+
+    // Endpoint do usuwania plików z karty SD z przeglądarki
+    server.on("/api/delete", HTTP_POST, [](AsyncWebServerRequest *request){
+        if(request->hasParam("path", true)){
+            String p = request->getParam("path", true)->value();
+            if(!p.startsWith("/")) p = "/" + p;
+            if(SD.remove(p)) request->send(200, "text/plain", "OK");
+            else request->send(500, "text/plain", "Blad usuwania");
+        } else {
+            request->send(400);
         }
     });
 

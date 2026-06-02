@@ -35,7 +35,7 @@ private:
     
     // Stała określająca odstęp czasu (w milisekundach) pomiędzy kolejnymi mikrokrokami serw.
     // Wartość 15ms zapewnia płynny ruch przy częstotliwości pracy serw 50Hz (20ms okres).
-    const uint8_t SWEEP_INTERVAL_MS = 15;
+    uint8_t sweepDelay = 15;
 
     void waitAndInterpolate(unsigned long ms);
 
@@ -58,7 +58,7 @@ public:
 
     // Serce modułu: Funkcja ta MUSI BYĆ WYWOŁYWANA CYKLICZNIE w pętli loop().
     // Wykonuje mikro-kroki do przodu, jeśli cel (target) różni się od obecnej pozycji (current).
-    void updateInterpolation();
+    void if (millis() - lastUpdateTime >= sweepDelay) {
 
     // Rozkaz ratunkowy/resetujący: Natychmiast ustawia wszystkie serwa w bezpiecznych pozycjach HOME.
     void moveHomeAll();
@@ -66,6 +66,10 @@ public:
     // Sekwencja testowa/powitalna: Wykonuje płynne ruchy wszystkimi stawami po kolei.
     // ZAPROJEKTOWANA DO DIAGNOSTYKI MECHANIKI I EFEKTU WIZUALNEGO.
     void executeCalibrationDance();
+
+    //publiczna funkcja do odbierania rozkazów prędkości
+    void setSpeed(uint8_t ms) {
+        if (ms >= 2 && ms <= 50) sweepDelay = ms;
 };
 
 #endif

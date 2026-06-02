@@ -81,6 +81,22 @@ void NetworkManager::setupEndpoints() {
                     int16_t val = msg.substring(msg.indexOf(":")+1).toInt();
                     if(servoRef) servoRef->setServoTicksDirect(id, val); // Natychmiastowy ruch serwa!
                 }
+                // Obsługa zapisu limitów do pamięci NVS
+                else if (msg.startsWith("CFG:")) {
+                    int p1 = msg.indexOf(':');
+                    int p2 = msg.indexOf(':', p1 + 1);
+                    int p3 = msg.indexOf(':', p2 + 1);
+                    int p4 = msg.indexOf(':', p3 + 1);
+                    
+                    uint8_t id = msg.substring(p1 + 1, p2).toInt();
+                    ServoBounds bounds;
+                    bounds.minTicks = msg.substring(p2 + 1, p3).toInt();
+                    bounds.maxTicks = msg.substring(p3 + 1, p4).toInt();
+                    bounds.homeTicks = msg.substring(p4 + 1).toInt();
+                    
+                    if(nvsRef) nvsRef->saveServoLimits(id, bounds);
+                    if(servoRef) servoRef->setSoftwareLimits(id, bounds);
+                }
             }
         }
     });

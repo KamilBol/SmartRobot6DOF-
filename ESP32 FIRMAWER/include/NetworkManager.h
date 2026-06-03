@@ -26,6 +26,13 @@ private:
     void setupSTA(String ssid, String pass);
     void setupEndpoints();
 
+    struct GlobalConfig {
+    String gem;
+    String sup;
+    String srv;
+};
+GlobalConfig globConfig;
+
 public:
     NetworkManager();
     void startSystem(NvsManager* nvs, ServoManager* servo);

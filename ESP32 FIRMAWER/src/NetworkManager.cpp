@@ -91,8 +91,8 @@ void NetworkManager::setupEndpoints() {
     server.addHandler(&ws);
 
     server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request){
-        if(isAPMode) request->send_P(200, "text/html", SETUP_HTML);
-        else request->send_P(200, "text/html", INDEX_HTML);
+        if(isAPMode) request->send(200, "text/html", SETUP_HTML);
+        else request->send(200, "text/html", INDEX_HTML);
     });
 
     server.onNotFound([](AsyncWebServerRequest *request){

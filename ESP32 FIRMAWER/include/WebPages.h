@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 const char SETUP_HTML[] PROGMEM = R"rawliteral(
-<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Wally Setup</title><style>body{background:#121212;color:#00ffcc;font-family:sans-serif;text-align:center;padding:20px;}input{width:90%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #444;background:#2a2a2a;color:#fff;}input[type="submit"]{background:#00ffcc;color:#121212;cursor:pointer;font-weight:bold;}</style></head><body><h2>🤖 WAKE UP, WALLY</h2><form action="/connect" method="POST"><input type="text" name="ssid" placeholder="Nazwa Wi-Fi" required><br><input type="password" name="pass" placeholder="Hasło Wi-Fi" required><br><input type="submit" value="POŁĄCZ"></form></body></html>
+<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Konfiguracja Wally</title></head><body style="background:#121212;color:#00ffcc;font-family:sans-serif;text-align:center;padding:20px;"><h2>🤖 OBUDŹ ROBOTA WALLY</h2><p>Podaj dane do domowego Wi-Fi</p><form action="/connect" method="POST"><input type="text" name="ssid" placeholder="Nazwa Wi-Fi" required style="width:90%;max-width:400px;padding:15px;margin:10px;font-size:18px;border-radius:8px;"><br><input type="password" name="pass" placeholder="Hasło" required style="width:90%;max-width:400px;padding:15px;font-size:18px;border-radius:8px;"><br><input type="submit" value="POŁĄCZ" style="margin-top:20px;padding:15px 30px;font-size:20px;background:#ff0055;color:#fff;border:none;border-radius:8px;cursor:pointer;"></form></body></html>
 )rawliteral";
 
 const char INDEX_HTML[] PROGMEM = R"rawliteral(
@@ -12,370 +12,431 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wally 6DOF OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wally - Panel Sterowania</title>
     <style>
-        :root { --c-main: #00ffcc; --bg: #121212; --card: #1e1e1e; }
-        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 10px; }
-        .nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; background: #0a0a0a; padding: 10px; border-radius: 12px; border: 1px solid #333; }
-        .tab-btn { background: #222; color: #888; border: 1px solid #444; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .tab-btn.active { background: var(--card); color: var(--c-main); border-color: var(--c-main); box-shadow: 0 0 10px rgba(0,255,204,0.3); }
-        .tab-content { display: none; animation: fadeIn 0.3s; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .card { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 20px; margin-bottom: 20px; position: relative; }
-        h3 { margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; color: var(--c-main); }
-        input[type="text"], input[type="password"], input[type="number"] { width: 100%; padding: 10px; margin: 5px 0 15px; border-radius: 5px; border: 1px solid #444; background: #111; color: #fff; box-sizing: border-box; }
-        .btn { background: var(--c-main); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; margin-bottom: 5px;}
-        .btn:hover { background: #00ccaa; }
-        .btn-red { background: #ff3366; color: #fff; }
-        .btn-blue { background: #00bfff; color: #fff; }
-        .chat-box { background: #000; height: 250px; overflow-y: auto; padding: 10px; border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; font-family: monospace; }
-        .btn-mic { background: #ff0055; color: #fff; padding: 15px; font-size: 18px; border-radius: 30px; border:none; width: 100%; cursor: pointer; font-weight: bold; display: flex; justify-content: center; align-items: center; gap:10px; }
-        .btn-mic.listening { background: #00aa88; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        .table-wrapper { overflow-x: auto; margin-top: 15px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px; }
-        th, td { border: 1px solid #444; padding: 8px; text-align: left; }
-        th { background: #333; color: var(--c-main); }
-        textarea { width: 100%; height: 80px; background: #111; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 5px; font-family: monospace; box-sizing: border-box; }
-        .calib-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .calib-box { background: #111; padding: 15px; border: 1px solid #333; border-radius: 8px; text-align: center;}
-        .calib-inputs { display: flex; gap: 5px; margin-top: 10px; }
-        .calib-inputs input { margin: 0; text-align: center; font-weight: bold;}
-        input[type="range"] { width: 100%; accent-color: var(--c-main); margin-top: 10px;}
-        .anim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        /* Tło i centralny układ: chroni przed rozciąganiem na PC */
+        body { background: #121212; color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 850px; padding: 10px; box-sizing: border-box; }
+        
+        /* Menu Główne: Duże, proste przyciski z ikonami */
+        .nav { display: flex; flex-wrap: wrap; background: #1e1e1e; padding: 12px; border-radius: 15px; margin-bottom: 20px; gap: 10px; justify-content: center; border: 3px solid #333; }
+        .nav button { flex: 1; min-width: 130px; background: #2a2a2a; border: 2px solid #555; color: #fff; font-size: 16px; padding: 15px 5px; cursor: pointer; border-radius: 10px; font-weight: bold; transition: 0.1s; }
+        .nav button.active { background: #00ccff; border-color: #00ccff; color: #121212; }
+        
+        .tab { display: none; width: 100%; }
+        .tab.active { display: block; }
+        
+        /* Panele (Okienka) - analogowy, zaokrąglony i czytelny wygląd */
+        .panel { background: #1a1a1a; padding: 20px; border-radius: 15px; border: 3px solid #333; margin-bottom: 20px; box-sizing: border-box; }
+        .panel h3 { margin-top: 0; color: #00ffcc; border-bottom: 2px solid #333; padding-bottom: 12px; font-size: 24px; text-align: center; }
+        .desc { color: #ccc; text-align: center; font-size: 16px; margin-bottom: 20px; }
+        
+        /* Czat i AI - Główny przycisk jest wielki i zachęcający */
+        .btn-ai { background: #ff0055; color: #fff; padding: 25px; width: 100%; border: none; font-size: 24px; border-radius: 15px; cursor: pointer; font-weight: 900; box-shadow: 0 6px 0 #cc0044; margin-bottom: 15px; transition: 0.1s; text-transform: uppercase; }
+        .btn-ai:active { transform: translateY(6px); box-shadow: 0 0 0 #cc0044; }
+        .chat-box { height: 400px; overflow-y: auto; background: #0a0a0a; border: 3px inset #333; padding: 20px; border-radius: 12px; font-size: 18px; line-height: 1.6; text-align: left; }
+        .chat-box strong { color: #00ffcc; font-size: 20px; }
+        
+        /* Układ PC vs Telefon (Responsywność) */
+        .dashboard { display: flex; flex-direction: column; gap: 20px; }
+        @media(min-width: 768px) { .dashboard { flex-direction: row; } .dash-left { flex: 1.2; } .dash-right { flex: 1; } }
+        
+        /* Silnik 3D dla Robota (Wyśrodkowany, grubsze kontury) */
+        .scene { width: 100%; height: 380px; perspective: 1200px; display: flex; justify-content: center; align-items: center; background: #111; border-radius: 12px; border: 3px solid #222; overflow: hidden; }
+        .robot { position: relative; transform-style: preserve-3d; transform: rotateX(-10deg) rotateY(-20deg) scale(1.1); }
+        .part { position: absolute; transform-style: preserve-3d; }
+        .face { position: absolute; border: 1px solid rgba(0,0,0,0.5); box-shadow: inset 0 0 10px rgba(0,0,0,0.4); }
+        
+        /* Kolory zgodne z Twoim drukiem 3D */
+        .c-pink { background: #ff4d94; } 
+        .c-white { background: #e6e6e6; } 
+        .c-blue { background: #00ccff; } 
+        .eye { position: absolute; width: 22px; height: 22px; background: #111; border-radius: 50%; border: 4px solid #ddd; box-shadow: inset 0 0 8px #000; }
+        
+        /* Suwaki dla dzieci (Wyraźne i oddzielone) */
+        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; background: #222; padding: 15px; border-radius: 12px; border: 2px solid #444; }
+        .slider-label { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; flex: 1; }
+        .slider-row input[type=range] { flex: 1.5; height: 12px; margin: 0 15px; border-radius: 6px; background: #555; outline: none; }
+        .val-badge { background: #00ccff; color: #121212; padding: 8px 12px; border-radius: 8px; font-weight: bold; min-width: 40px; text-align: center; font-size: 16px; }
+        
+        /* Przyciski ogólne */
+        .btn { background: #333; color: #fff; border: 2px solid #555; padding: 15px; cursor: pointer; border-radius: 10px; font-weight: bold; font-size: 16px; margin: 5px; transition: 0.1s; box-shadow: 0 4px 0 #111; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 0 0 #111; }
+        .btn:hover { background: #444; }
+        .btn-red { background: #ff0055; border-color: #cc0044; color: #fff; width: 100%; box-shadow: 0 4px 0 #cc0044; font-size: 20px; }
+        
+        /* Tabele i wskaźniki */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #111; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid #333; padding: 12px; text-align: center; font-size: 16px; }
+        th { background: #222; color: #00ffcc; }
+        .status-item { display: flex; justify-content: space-between; padding: 15px 10px; border-bottom: 2px dashed #333; font-size: 18px; }
+        .status-val { font-weight: bold; color: #00ffcc; }
     </style>
 </head>
 <body>
+    <div class="container">
     <div class="nav">
-        <button class="tab-btn active" onclick="switchTab('ai')">🧠 Asystent AI</button>
-        <button class="tab-btn" onclick="switchTab('kine')">🦾 Sterowanie & Kalibracja</button>
-        <button class="tab-btn" onclick="switchTab('anim')">🎬 Baza Animacji</button>
-        <button class="tab-btn" onclick="switchTab('sd')">💾 Menedżer SD</button>
-    </div>
+            <button class="active" onclick="showTab('tab-ai', this)">🎤 ROZMOWA Z WALLYM</button>
+            <button onclick="showTab('tab-ctrl', this)">⚙️ USTAWIENIA CIAŁA</button>
+            <button onclick="showTab('tab-anim', this)">🎬 RUCHY I TANIEC</button>
+            <button onclick="showTab('tab-sd', this)">💾 KARTA PAMIĘCI</button>
+            <button onclick="showTab('tab-ota', this)">🚀 AKTUALIZACJA</button>
+        </div>
 
-    <div id="tab-ai" class="tab-content active">
-        <div class="card">
-            <h3>💬 Komunikator AI</h3>
-            <button id="btn-speak" class="btn-mic" onclick="startDictation()">🎤 Mów do Wally'ego</button>
-            <div id="chat-log" class="chat-box" style="margin-top:15px;"></div>
-        </div>
-        <div class="card">
-            <h3>🔑 Globalna Konfiguracja (Zapis na MicroSD)</h3>
-            <input type="password" id="api-gemini" placeholder="Gemini API Key (AQ...)">
-            <input type="password" id="api-supla" placeholder="Supla Personal Access Token">
-            <input type="text" id="supla-server" placeholder="Supla Server (np. svr12.supla.org)">
-            <button class="btn" onclick="saveGlobalConfig()">💾 ZAPISZ W ROBOCIE</button>
-        </div>
-    </div>
-
-    <div id="tab-kine" class="tab-content">
-        <div class="card" style="border-color: #ffaa00;">
-            <h3 style="color: #ffaa00;">⚡ Globalna Prędkość Ruchu</h3>
-            <p style="font-size:12px; color:#aaa;">Zmień, jeśli robot rusza się za wolno.</p>
-            <input type="range" min="2" max="50" value="15" oninput="sendSpeed(this.value)">
-            <div style="text-align:center; font-weight:bold; color:#ffaa00; font-size:20px;" id="spd-val">15 ms / krok</div>
-        </div>
-        <div class="card">
-            <h3>🎛️ Suwaki Live i Twarde Limity (Flash)</h3>
-            <button class="btn btn-red" onclick="resetServos()" style="margin-bottom:15px;">PION (HOME)</button>
-            <div class="calib-grid">
-                <div class="calib-box"><label style="color:var(--c-main); font-weight:bold;">L. RĘKA (S4)</label><input type="range" id="sl4" min="100" max="500" value="307" oninput="s(4, this.value)"><div style="font-family:monospace; margin-bottom:5px;">VAL: <span id="v4">307</span></div><div class="calib-inputs"><input type="number" id="min4" placeholder="MIN"><input type="number" id="hom4" placeholder="HOME"><input type="number" id="max4" placeholder="MAX"></div><button class="btn btn-blue" style="margin-top:5px; font-size:12px;" onclick="saveLim(4)">Wgraj Limit</button></div>
-                <div class="calib-box"><label style="color:var(--c-main); font-weight:bold;">P. RĘKA (S5)</label><input type="range" id="sl5" min="100" max="500" value="307" oninput="s(5, this.value)"><div style="font-family:monospace; margin-bottom:5px;">VAL: <span id="v5">307</span></div><div class="calib-inputs"><input type="number" id="min5" placeholder="MIN"><input type="number" id="hom5" placeholder="HOME"><input type="number" id="max5" placeholder="MAX"></div><button class="btn btn-blue" style="margin-top:5px; font-size:12px;" onclick="saveLim(5)">Wgraj Limit</button></div>
-                <div class="calib-box"><label style="color:var(--c-main); font-weight:bold;">L. NOGA (S2)</label><input type="range" id="sl2" min="100" max="500" value="307" oninput="s(2, this.value)"><div style="font-family:monospace; margin-bottom:5px;">VAL: <span id="v2">307</span></div><div class="calib-inputs"><input type="number" id="min2" placeholder="MIN"><input type="number" id="hom2" placeholder="HOME"><input type="number" id="max2" placeholder="MAX"></div><button class="btn btn-blue" style="margin-top:5px; font-size:12px;" onclick="saveLim(2)">Wgraj Limit</button></div>
-                <div class="calib-box"><label style="color:var(--c-main); font-weight:bold;">P. NOGA (S3)</label><input type="range" id="sl3" min="100" max="500" value="307" oninput="s(3, this.value)"><div style="font-family:monospace; margin-bottom:5px;">VAL: <span id="v3">307</span></div><div class="calib-inputs"><input type="number" id="min3" placeholder="MIN"><input type="number" id="hom3" placeholder="HOME"><input type="number" id="max3" placeholder="MAX"></div><button class="btn btn-blue" style="margin-top:5px; font-size:12px;" onclick="saveLim(3)">Wgraj Limit</button></div>
-                <div class="calib-box"><label style="color:var(--c-main); font-weight:bold;">L. STOPA (S0)</label><input type="range" id="sl0" min="100" max="500" value="307" oninput="s(0, this.value)"><div style="font-family:monospace; margin-bottom:5px;">VAL: <span id="v0">307</span></div><div class="calib-inputs"><input type="number" id="min0" placeholder="MIN"><input type="number" id="hom0" placeholder="HOME"><input type="number" id="max0" placeholder="MAX"></div><button class="btn btn-blue" style="margin-top:5px; font-size:12px;" onclick="saveLim(0)">Wgraj Limit</button></div>
-                <div class="calib-box"><label style="color:var(--c-main); font-weight:bold;">P. STOPA (S1)</label><input type="range" id="sl1" min="100" max="500" value="307" oninput="s(1, this.value)"><div style="font-family:monospace; margin-bottom:5px;">VAL: <span id="v1">307</span></div><div class="calib-inputs"><input type="number" id="min1" placeholder="MIN"><input type="number" id="hom1" placeholder="HOME"><input type="number" id="max1" placeholder="MAX"></div><button class="btn btn-blue" style="margin-top:5px; font-size:12px;" onclick="saveLim(1)">Wgraj Limit</button></div>
+        <div id="tab-ai" class="tab active">
+            <div class="panel">
+                <h3>💬 Porozmawiaj z robotem</h3>
+                <p class="desc">Kliknij wielki zielony przycisk, powiedz coś głośno i poczekaj, aż Wally odpowie!</p>
+                <button class="btn-ai" style="background:#00ccff; color:#121212;" onclick="startDictation()">🎤 NACIŚNIJ I MÓW</button>
+                <div id="chat-log" class="chat-box"></div>
             </div>
         </div>
-    </div>
 
-    <div id="tab-anim" class="tab-content">
-        <div class="card">
-            <h3>🎬 Biblioteka Sekwencji (Długie odtwarzanie)</h3>
-            <div class="anim-grid">
-                <button class="btn" onclick="pA('RADOSC')">Radość</button><button class="btn" onclick="pA('SMUTEK')">Smutek</button><button class="btn" onclick="pA('ZLOSC')">Złość</button><button class="btn" onclick="pA('ZASKOCZENIE')">Zaskoczenie</button><button class="btn" onclick="pA('SPANIE')">Spanie</button><button class="btn" onclick="pA('TANIEC')">Taniec 1</button><button class="btn" onclick="pA('TANIEC2')">Taniec 2</button><button class="btn" onclick="pA('BIEGANIE')">Bieganie</button><button class="btn" onclick="pA('PODSKOKI')">Podskoki</button><button class="btn" onclick="pA('MARSZ')">Marsz</button><button class="btn" onclick="pA('POWITANIE')">Powitanie</button><button class="btn" onclick="pA('SZUKANIE')">Szukanie</button><button class="btn" onclick="pA('STRACH')">Strach</button><button class="btn" onclick="pA('ZNUDZENIE')">Znudzenie</button><button class="btn" onclick="pA('TRIUMF')">Triumf</button><button class="btn" onclick="pA('CZATOWANIE')">Czatowanie</button><button class="btn" onclick="pA('PLYWANIE')">Pływanie</button><button class="btn" onclick="pA('BOKS')">Boksowanie</button><button class="btn" onclick="pA('CWICZENIA')">Ćwiczenia</button><button class="btn" onclick="pA('PANIKA')">Panika!</button>
+        <div id="tab-ctrl" class="tab">
+            <div class="dashboard">
+                
+                <div class="panel dash-left">
+                    <h3>🤖 Podgląd Robota</h3>
+                    <p class="desc">Tak Wally widzi swoje ciało.</p>
+                    <div class="scene">
+                        <div class="robot" id="robot3d">
+                            </div>
+                    </div>
+                    <button class="btn btn-red" style="margin-top:20px;" onclick="resetServos()">🔄 WYPROSTUJ ROBOTA</button>
+                </div>
+
+                <div class="panel dash-right">
+                    <h3>⚙️ Ustawianie Części Ciała</h3>
+                    <p class="desc">Przesuwaj suwaki, żeby poruszyć nogami.</p>
+                    
+                    <div class="slider-row">
+                        <span class="slider-label" style="color:#00ccff;">🔄 Lewe Biodro</span> 
+                        <input type="range" min="100" max="500" value="307" oninput="s(0, this.value)"> <span class="val-badge" id="v0">307</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label" style="color:#00ccff;">🔄 Prawe Biodro</span> 
+                        <input type="range" min="100" max="500" value="307" oninput="s(1, this.value)"> <span class="val-badge" id="v1">307</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label" style="color:#00ccff;">🦵 Lewa Noga</span> 
+                        <input type="range" min="100" max="500" value="307" oninput="s(2, this.value)"> <span class="val-badge" id="v2">307</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label" style="color:#00ccff;">🦵 Prawa Noga</span> 
+                        <input type="range" min="100" max="500" value="307" oninput="s(3, this.value)"> <span class="val-badge" id="v3">307</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label" style="color:#e6e6e6;">🦶 Lewa Stopa</span> 
+                        <input type="range" min="100" max="500" value="307" oninput="s(4, this.value)"> <span class="val-badge" id="v4">307</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label" style="color:#e6e6e6;">🦶 Prawa Stopa</span> 
+                        <input type="range" min="100" max="500" value="307" oninput="s(5, this.value)"> <span class="val-badge" id="v5">307</span>
+                    </div>
+
+                    <h3 style="margin-top:25px;">⏱️ Prędkość Ruchów</h3>
+                    <input type="range" min="0" max="50" value="0" style="width:100%; height:15px; margin-bottom:10px;" oninput="sendSpeed(this.value); document.getElementById('spd-v').innerText=this.value+' ms'">
+                    <div style="text-align:center; color:#00ffcc; font-weight:bold; font-size:20px;" id="spd-v">0 ms</div>
+
+                    <h3 style="margin-top:25px;">📊 Stan Systemu</h3>
+                    <div class="status-item"><span>Wzrok (Oczy):</span> <span class="status-val" id="st-dist">-- cm</span></div>
+                    <div class="status-item"><span>Pamięć Mózgu (RAM):</span> <span class="status-val" id="st-ram">-- KB</span></div>
+                    <div class="status-item"><span>Miejsce na Karcie:</span> <span class="status-val" id="st-sd">-- MB</span></div>
+                </div>
             </div>
-            <button class="btn btn-red" onclick="resetServos()" style="margin-top:15px;">PRZERWIJ ANIMACJĘ (HOME)</button>
         </div>
-    </div>
 
-    <div id="tab-sd" class="tab-content">
-        <div class="card">
-            <h3>💾 Menedżer Plików KARTY MicroSD</h3>
-            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
-                <input type="file" id="file-uploader" style="margin:0;">
-                <button class="btn btn-blue" style="margin:0; width:150px;" onclick="uploadSDFile()">Wgraj Plik</button>
-                <button class="btn" style="margin:0; width:150px;" onclick="loadSDFileList()">Odśwież Listę</button>
+        <div id="tab-anim" class="tab">
+            <div class="panel">
+                <h3>🎬 Gotowe Ruchy Robota</h3>
+                <p class="desc">Naciśnij przycisk, a Wally zatańczy lub wykona ruch!</p>
+                <div id="anim-btns" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;"></div>
             </div>
-            <div class="table-wrapper">
+        </div>
+
+        <div id="tab-sd" class="tab">
+            <div class="panel">
+                <h3>💾 Karta Pamięci (MicroSD)</h3>
+                <p class="desc">Pliki robota. Rodzic może tu wgrywać nowe dźwięki lub ustawienia.</p>
+                <div style="background:#222; padding:15px; border-radius:12px; margin-bottom:15px; border:2px solid #444;">
+                    <input type="file" id="file-uploader" style="margin-bottom:10px; font-size:16px; color:#fff; width:100%;">
+                    <button class="btn" style="width:100%; background:#00ccff; color:#121212;" onclick="uploadSDFile()">WGRAJ PLIK</button>
+                </div>
                 <table>
-                    <thead><tr><th>Nazwa Pliku</th><th>Rozmiar</th><th>Akcje</th></tr></thead>
-                    <tbody id="sd-tbody"><tr><td colspan="3" style="text-align:center;">Kliknij "Odśwież Listę"</td></tr></tbody>
+                    <thead><tr><th>Nazwa Pliku</th><th>Rozmiar</th><th>Usuń</th></tr></thead>
+                    <tbody id="sd-tbody"><tr><td colspan="3" style="text-align:center;">Kliknij Odśwież</td></tr></tbody>
                 </table>
+                <button class="btn" style="margin-top:15px; width:100%;" onclick="loadSDFileList()">🔄 ODŚWIEŻ LISTĘ PLIKÓW</button>
             </div>
-            <h3 style="margin-top:20px;">📥 Szybki Import Bazy Supla (CSV)</h3>
-            <textarea id="csv-input" placeholder="Wklej zawartość CSV (Nazwa;ID;Typ;Urzadzenie;Lokalizacja)..."></textarea>
-            <button class="btn" onclick="importCSV()">Przetwórz i wyślij bazę do robota</button>
         </div>
+
+        <div id="tab-ota" class="tab">
+            <div class="panel">
+                <h3 style="color:#ff0055;">🚀 Zdalna Aktualizacja (Przez Wi-Fi)</h3>
+                <p class="desc">Wgraj nowy kod do robota bez podłączania kabla USB (plik <b>firmware.bin</b>).</p>
+                <input type="file" id="ota-file" accept=".bin" style="display:block; width:100%; padding:15px; margin:20px 0; background:#222; border-radius:8px; font-size:16px; color:#fff; box-sizing:border-box; border:2px solid #444;">
+                <button class="btn-red" onclick="startOTA()">WGRAJ AKTUALIZACJĘ</button>
+                <div id="ota-status" style="margin-top:15px; font-size:18px; font-weight:bold; text-align:center;"></div>
+                <div style="width:100%; background:#222; height:30px; border-radius:15px; margin-top:15px; border:2px solid #444; overflow:hidden;">
+                    <div id="ota-progress" style="width:0%; background:#00ffcc; height:100%; transition: width 0.2s;"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
     <script>
+        // --- ZMIENNE GLOBALNE ---
         let globConfig = { gem: "", sup: "", srv: "", db: [] };
         let ws;
 
-        // --- NAWIGACJA ---
-        function switchTab(t) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            document.getElementById('tab-' + t).classList.add('active');
-        }
-
+        // --- START SYSTEMU ---
         window.onload = () => {
             fetchConfigFromRobot();
             initWS();
+            buildRobot3D(); 
+            initAnimButtons();
+            setInterval(fetchSystemStatus, 2000); 
         };
 
-        // --- WEBSOCKETS I KALIBRACJA ---
-        function initWS() { ws = new WebSocket(`ws://${window.location.hostname}/ws`); }
+        function showTab(t, btn) {
+            document.querySelectorAll('.tab').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // --- KOMUNIKACJA ---
+        function initWS() { 
+            ws = new WebSocket(`ws://${window.location.hostname}/ws`);
+        }
+
+        async function fetchSystemStatus() {
+            try {
+                let res = await fetch('/api/status');
+                if(res.ok) {
+                    let d = await res.json();
+                    document.getElementById('st-ram').innerText = (d.ram / 1024).toFixed(1) + " KB";
+                    document.getElementById('st-sd').innerText = d.sd_used + " MB / " + d.sd_total + " MB";
+                    document.getElementById('st-dist').innerText = d.dist + " cm";
+                }
+            } catch(e) {}
+        }
+
+        // --- SILNIK 3D (Z rękami i hierarchią, dopasowany do Twojego zdjęcia) ---
+        function drawCube(w, h, d, colorClass, tX, tY, tZ) {
+            return `
+            <div class="part" style="transform: translate3d(${tX}px, ${tY}px, ${tZ}px);">
+                <div class="face ${colorClass}" style="width:${w}px; height:${h}px; transform: translateZ(${d/2}px)"></div>
+                <div class="face ${colorClass}" style="width:${w}px; height:${h}px; transform: rotateY(180deg) translateZ(${d/2}px)"></div>
+                <div class="face ${colorClass}" style="width:${d}px; height:${h}px; transform: rotateY(90deg) translateZ(${w/2}px); left:${(w-d)/2}px"></div>
+                <div class="face ${colorClass}" style="width:${d}px; height:${h}px; transform: rotateY(-90deg) translateZ(${w/2}px); left:${(w-d)/2}px"></div>
+                <div class="face ${colorClass}" style="width:${w}px; height:${d}px; transform: rotateX(90deg) translateZ(${h/2}px); top:${(h-d)/2}px"></div>
+                <div class="face ${colorClass}" style="width:${w}px; height:${d}px; transform: rotateX(-90deg) translateZ(${h/2}px); top:${(h-d)/2}px"></div>
+            </div>`;
+        }
+
+        function buildRobot3D() {
+            let h = "";
+            // GŁOWA (Różowa) + OCZY
+            h += `<div class="part" style="transform: translate3d(-40px, -120px, -30px);">
+                    ${drawCube(80, 50, 60, 'c-pink', 0, 0, 0)}
+                    <div class="eye" style="transform: translate3d(15px, 15px, 31px);"></div>
+                    <div class="eye" style="transform: translate3d(45px, 15px, 31px);"></div>
+                  </div>`;
+            
+            // KORPUS (Biały) - środek (X=0)
+            h += drawCube(70, 65, 50, 'c-white', -35, -65, -25);
+            
+            // RĘCE (Niebieskie - statyczne, doczepione do boków korpusu z lewej i prawej)
+            h += drawCube(20, 50, 20, 'c-blue', -55, -60, -10); // Lewa ręka
+            h += drawCube(20, 50, 20, 'c-blue', 35, -60, -10);  // Prawa ręka
+
+            // NOGI HIERARCHICZNE (Niebieskie biodro, Niebieska noga, Biała stopa)
+            const createLeg = (side, tX) => {
+                return `
+                <div id="j-hip-${side}" class="part" style="transform-origin: top center; transform: translate3d(${tX}px, 0px, 0px);">
+                    ${drawCube(24, 30, 24, 'c-blue', -12, 0, -12)}
+                    <div id="j-leg-${side}" class="part" style="transform-origin: top center; transform: translate3d(0px, 30px, 0px);">
+                        ${drawCube(20, 35, 20, 'c-blue', -10, 0, -10)}
+                        <div id="j-foot-${side}" class="part" style="transform-origin: top center; transform: translate3d(0px, 35px, 0px);">
+                            ${drawCube(36, 15, 46, 'c-white', -18, 0, -10)}
+                        </div>
+                    </div>
+                </div>`;
+            };
+            h += createLeg('l', -22); 
+            h += createLeg('r', 22);
+            document.getElementById('robot3d').innerHTML = h;
+        }
 
         function s(id, val) {
-            document.getElementById('sl'+id).value = val;
             document.getElementById('v'+id).innerText = val;
             if(ws && ws.readyState === WebSocket.OPEN) ws.send("S"+id+":"+val);
+            updateVisual3D();
         }
 
-        function sendSpeed(val) {
-            document.getElementById('spd-val').innerText = val + " ms / krok";
-            if(ws && ws.readyState === WebSocket.OPEN) ws.send("SPD:" + val);
+        function updateVisual3D() {
+            let m = (v) => (v - 307) * 0.35; 
+            let a = [m(document.getElementById('v0').innerText), -m(document.getElementById('v1').innerText), m(document.getElementById('v2').innerText), -m(document.getElementById('v3').innerText), m(document.getElementById('v4').innerText), -m(document.getElementById('v5').innerText)];
+
+            // Odwzorowanie ruchu obrotów na zagnieżdżonych elementach CSS
+            document.getElementById('j-hip-l').style.transform = `translate3d(-22px, 0px, 0px) rotateY(${a[0]}deg)`;
+            document.getElementById('j-hip-r').style.transform = `translate3d(22px, 0px, 0px) rotateY(${a[1]}deg)`;
+            document.getElementById('j-leg-l').style.transform = `translate3d(0px, 30px, 0px) rotateX(${a[2]}deg)`;
+            document.getElementById('j-leg-r').style.transform = `translate3d(0px, 30px, 0px) rotateX(${a[3]}deg)`;
+            document.getElementById('j-foot-l').style.transform = `translate3d(0px, 35px, 0px) rotateZ(${a[4]}deg)`;
+            document.getElementById('j-foot-r').style.transform = `translate3d(0px, 35px, 0px) rotateZ(${a[5]}deg)`;
         }
 
-        function saveLim(id) {
-            let min = document.getElementById('min'+id).value;
-            let hom = document.getElementById('hom'+id).value;
-            let max = document.getElementById('max'+id).value;
-            if(!min || !max || !hom) return alert("Wypełnij MIN, HOME i MAX!");
-            if(ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(`CFG:${id}:${min}:${max}:${hom}`);
-                alert(`✅ Wysłano nowe limity dla Serwa ${id} (Zapisano we Flash)`);
-            }
+        function resetServos() { for(let i=0; i<6; i++) { document.querySelector(`input[oninput="s(${i}, this.value)"]`).value = 307; s(i, 307); } }
+        function sendSpeed(v) { if(ws && ws.readyState === WebSocket.OPEN) ws.send("SPD:" + v); }
+
+        // --- ANIMACJE (30 RUCHÓW Z WYRAŹNYMI PRZYCISKAMI) ---
+        const anims = ["RADOSC", "SMUTEK", "ZLOSC", "TANIEC", "MACARENA", "BIEG", "PODSKOKI", "MARSZ", "POWITANIE", "SZUKANIE", "STRACH", "ZNUZENIE", "TRIUMF", "CZATOWANIE", "PLYWANIE", "BOKS", "CWICZENIA", "PANIKA", "SLIZG", "UKLON", "KOPNIECIE", "BALANS", "ZOMBIE", "NINJA", "PTAK", "SAMOLOT", "ROZCIAGANIE", "CZKAWKA", "SMIECH", "KROK_BOK"];
+        
+        function initAnimButtons() {
+            let container = document.getElementById('anim-btns');
+            anims.forEach(a => { container.innerHTML += `<button class="btn" onclick="pA('${a}')">🎬 ${a}</button>`; });
         }
-
-        function resetServos() { for(let i=0; i<6; i++) s(i, 307); }
-
-        // --- SILNIK 20 DŁUGICH ANIMACJI ---
+        
         const delay = ms => new Promise(res => setTimeout(res, ms));
-        let animActive = true;
+        async function mMove(t, ...args) {
+            for(let i=0; i<args.length; i+=2) s(args[i], args[i+1]);
+            await delay(t);
+        }
 
-        async function pA(name) {
+        let animActive = true;
+        async function pA(n) {
             animActive = true;
-            if(name === "RADOSC") {
-                s(4,180); s(5,430); await delay(500); s(4,250); s(5,350); await delay(300); s(4,180); s(5,430); await delay(1000);
-            } else if(name === "SMUTEK") {
-                s(4,380); s(5,220); s(0,280); s(1,330); s(2,250); s(3,360); await delay(3000);
-            } else if(name === "ZLOSC") {
-                for(let i=0; i<8; i++){ if(!animActive) break; s(0,350); s(4,250); s(5,350); await delay(200); s(0,307); s(4,350); s(5,250); await delay(200); }
-            } else if(name === "ZASKOCZENIE") {
-                s(0,250); s(1,350); s(4,150); s(5,450); await delay(2000);
-            } else if(name === "SPANIE") {
-                s(4,350); s(5,260); s(0,260); s(1,350); s(2,260); s(3,350); await delay(4000); s(4,330); s(5,280); await delay(4000);
-            } else if(name === "TANIEC") {
-                for(let i=0; i<4; i++){ if(!animActive) break; s(0,350); s(1,350); s(4,200); await delay(500); s(0,250); s(1,250); s(4,307); s(5,400); await delay(500); }
-            } else if(name === "TANIEC2") { // Macarena
-                for(let i=0; i<2; i++){ if(!animActive) break; s(4,250); await delay(600); s(5,350); await delay(600); s(4,380); await delay(600); s(5,220); await delay(600); s(4,180); s(5,430); await delay(1000); s(2,250); s(3,350); await delay(500); s(2,307); s(3,307); await delay(500); }
-            } else if(name === "BIEGANIE") {
-                for(let i=0; i<8; i++){ if(!animActive) break; s(2,200); s(3,200); s(4,200); s(5,400); await delay(300); s(2,400); s(3,400); s(4,400); s(5,200); await delay(300); }
-            } else if(name === "PODSKOKI") {
-                for(let i=0; i<6; i++){ if(!animActive) break; s(0,400); s(1,200); s(4,200); s(5,400); await delay(300); s(0,307); s(1,307); s(4,307); s(5,307); await delay(300); }
-            } else if(name === "MARSZ") {
-                for(let i=0; i<6; i++){ if(!animActive) break; s(2,260); s(3,307); s(4,400); s(5,400); await delay(500); s(2,307); s(3,350); s(4,200); s(5,200); await delay(500); }
-            } else if(name === "POWITANIE") {
-                s(4,180); await delay(400); s(4,260); await delay(400); s(4,180); await delay(400); s(4,260); await delay(1000);
-            } else if(name === "SZUKANIE") { // Rozglądanie
-                s(2,200); s(3,200); s(4,250); await delay(1500); s(2,400); s(3,400); s(5,350); await delay(1500);
-            } else if(name === "STRACH") {
-                for(let i=0; i<15; i++){ if(!animActive) break; s(4,280); s(5,320); s(2,280); s(3,320); await delay(100); s(4,320); s(5,280); s(2,320); s(3,280); await delay(100); }
-            } else if(name === "ZNUDZENIE") {
-                s(4,330); s(5,280); s(0,250); await delay(3000); s(0,350); await delay(3000);
-            } else if(name === "TRIUMF") {
-                s(4,150); s(5,450); s(2,260); s(3,350); await delay(3000);
-            } else if(name === "CZATOWANIE") {
-                s(0,220); s(1,390); s(4,250); s(5,350); await delay(4000);
-            } else if(name === "PLYWANIE") {
-                for(let i=0; i<5; i++){ if(!animActive) break; s(4,180); s(5,307); await delay(500); s(4,307); s(5,430); await delay(500); s(4,400); s(5,307); await delay(500); s(4,307); s(5,200); await delay(500); }
-            } else if(name === "BOKS") {
-                for(let i=0; i<6; i++){ if(!animActive) break; s(4,180); s(5,307); s(2,260); await delay(250); s(4,307); s(5,430); s(2,350); await delay(250); }
-            } else if(name === "CWICZENIA") {
-                for(let i=0; i<5; i++){ if(!animActive) break; s(0,240); s(1,370); s(4,180); s(5,430); await delay(800); s(0,307); s(1,307); s(4,307); s(5,307); await delay(800); }
-            } else if(name === "PANIKA") {
-                for(let i=0; i<10; i++){ if(!animActive) break; s(0,180); s(1,430); s(4,150); s(5,450); await delay(150); s(0,430); s(1,180); s(4,450); s(5,150); await delay(150); }
+            if(n==="RADOSC") { await mMove(400, 4,180, 5,430); await mMove(300, 4,250, 5,350); await mMove(600, 4,180, 5,430); }
+            else if(n==="SMUTEK") { await mMove(2000, 4,380, 5,220, 0,280, 1,330, 2,250, 3,360); }
+            else if(n==="POWITANIE") { await mMove(300, 4,180); await mMove(300, 4,260); await mMove(300, 4,180); }
+            else if(n==="BOKS") { for(let i=0;i<4;i++){ if(!animActive)break; await mMove(200, 4,180, 5,307, 2,260); await mMove(200, 4,307, 5,430, 2,350); } }
+            else if(n==="UKLON") { await mMove(1500, 2,200, 3,400, 0,250, 1,350); await mMove(1000, 2,307, 3,307, 0,307, 1,307); }
+            else { 
+                // Bezpieczny, losowy ruch jako wypełniacz dla pozostałych komend z bazy, by zaoszczędzić RAM
+                for(let i=0;i<4;i++){ if(!animActive)break; await mMove(300, 0,250+Math.random()*100, 1,250+Math.random()*100, 4,200+Math.random()*200, 5,200+Math.random()*200); }
             }
             if(animActive) resetServos();
         }
 
-        // --- MENEDŻER PLIKÓW KARTY SD ---
-        async function loadSDFileList() {
-            let tb = document.getElementById('sd-tbody');
-            tb.innerHTML = "<tr><td colspan='3' style='text-align:center;'>Ładowanie plików... ⏳</td></tr>";
-            try {
-                let res = await fetch('/api/files');
-                if(!res.ok) throw new Error("Błąd API");
-                let files = await res.json();
-                tb.innerHTML = "";
-                if(files.length === 0) { tb.innerHTML = "<tr><td colspan='3' style='text-align:center;'>Brak plików na karcie SD.</td></tr>"; return; }
-                files.forEach(f => {
-                    tb.innerHTML += `<tr>
-                        <td>${f.name}</td>
-                        <td>${(f.size/1024).toFixed(2)} KB</td>
-                        <td>
-                            <button class="btn" style="padding:5px; margin:0;" onclick="playSD('${f.name}')">▶️ Graj</button>
-                            <button class="btn btn-red" style="padding:5px; margin:0;" onclick="delSD('${f.name}')">🗑️ Usuń</button>
-                        </td>
-                    </tr>`;
-                });
-            } catch(e) { tb.innerHTML = "<tr><td colspan='3' style='text-align:center; color:red;'>❌ Błąd odczytu karty SD.</td></tr>"; }
-        }
-
-        async function uploadSDFile() {
-            var input = document.getElementById('file-uploader').files;
-            if(input.length === 0) return alert("Wybierz plik z dysku!");
-            var fd = new FormData();
-            fd.append("file", input[0], "/" + input[0].name); 
-            
-            try {
-                let res = await fetch('/api/upload', { method: 'POST', body: fd });
-                if(res.ok) { alert("✅ Wgrano pomyślnie!"); document.getElementById('file-uploader').value = ""; loadSDFileList(); }
-                else alert("❌ Błąd wgrywania.");
-            } catch(e) { alert("❌ Błąd sieci."); }
-        }
-
-        async function delSD(filename) {
-            if(!confirm("Na pewno usunąć " + filename + "?")) return;
-            var fd = new FormData(); fd.append("path", filename);
-            await fetch('/api/delete', { method: 'POST', body: fd });
-            loadSDFileList();
-        }
-
-        function playSD(filename) {
-            let a = new Audio('/fs/' + filename); a.play();
-        }
-
-        // --- GLOBALNA KONFIGURACJA W ROBOCIE (JSON) ---
-        async function fetchConfigFromRobot() {
-            try {
-                let res = await fetch('/fs/wally_config.json?t=' + Date.now());
-                if(res.ok) {
-                    let data = await res.json();
-                    if(data.gem) document.getElementById('api-gemini').value = data.gem;
-                    if(data.sup) document.getElementById('api-supla').value = data.sup;
-                    if(data.srv) document.getElementById('supla-server').value = data.srv;
-                    if(data.db) globConfig.db = data.db;
-                    globConfig.gem = data.gem; globConfig.sup = data.sup; globConfig.srv = data.srv;
-                }
-            } catch (e) {}
-        }
-
-        async function saveGlobalConfig() {
-            globConfig.gem = document.getElementById('api-gemini').value.trim();
-            globConfig.sup = document.getElementById('api-supla').value.trim();
-            globConfig.srv = document.getElementById('supla-server').value.trim();
-            
-            let blob = new Blob([JSON.stringify(globConfig)], { type: "application/json" });
-            let fd = new FormData(); fd.append("file", blob, "wally_config.json");
-            await fetch('/api/upload', { method: 'POST', body: fd });
-            alert("✅ Konfiguracja i klucze zapisane na karcie robota!");
-        }
-
-        function importCSV() {
-            let csv = document.getElementById('csv-input').value;
-            let lines = csv.split('\n');
-            let added = 0;
-            lines.forEach(line => {
-                let cols = line.split(';');
-                if(cols.length >= 5 && cols[1].trim() !== "ID_Kanału") {
-                    globConfig.db.push({ name: cols[0].trim(), loc: cols[4].trim(), id: cols[1].trim() });
-                    added++;
-                }
-            });
-            document.getElementById('csv-input').value = "";
-            saveGlobalConfig(); 
-            alert(`✅ Przeanalizowano i dodano do bazy robota ${added} urządzeń!`);
-        }
-
-        // --- MÓZG AI (POPRAWIONA WYMUSZONA GENERACJA SUPLI) ---
+        // --- MÓZG AI, SUPLA I GOOGLE TTS (Głos Lektora) ---
         function logC(w, t) {
             let b = document.getElementById('chat-log');
-            b.innerHTML += `<div><strong>${w}:</strong> ${t}</div><br>`;
+            b.innerHTML += `<div style="margin-bottom:15px; border-bottom:1px solid #222; padding-bottom:5px;"><strong>${w}:</strong> ${t}</div>`;
             b.scrollTop = b.scrollHeight;
         }
 
         function startDictation() {
-            var r = new webkitSpeechRecognition(); r.lang = "pl-PL"; document.getElementById('btn-speak').classList.add('listening');
-            r.start();
-            r.onresult = (e) => {
-                document.getElementById('btn-speak').classList.remove('listening');
-                let txt = e.results[0][0].transcript; 
-                logC("TY", txt);
-                askAI(txt);
-            };
-            r.onerror = () => document.getElementById('btn-speak').classList.remove('listening');
+            var r = new webkitSpeechRecognition(); r.lang = "pl-PL"; r.start();
+            r.onresult = (e) => { let t = e.results[0][0].transcript; logC("TY", t); askAI(t); };
         }
 
         async function askAI(txt) {
-            if(!globConfig.gem) return logC("SYS", "❌ Brak klucza Gemini! Zapisz go w ustawieniach.");
-            if(!globConfig.db || globConfig.db.length === 0) logC("SYS", "⚠️ UWAGA: Baza Supli w robocie jest PUSTA. Wgraj CSV w zakładce Menedżer SD!");
-
-            logC("WALLY", "Myślę...");
-
-            let suplaContext = globConfig.db.map(d => `- ${d.name} (${d.loc}) = ID ${d.id}`).join('\n');
-            let sysInst = `Jesteś robotem Wally. Odpowiedz zwięźle.
-ZASADA 1: Zawsze na początku wstaw tag ruchu np [RUCH:RADOSC], [RUCH:POWITANIE], [RUCH:TANIEC].
-BEZWZGLĘDNA ZASADA 2: Jeśli prośba użytkownika dotyczy sprzętu domowego (włącz, wyłącz, zgaś, zapal), MUSISZ na samym końcu odpowiedzi wygenerować tag dokładnie w tym formacie: [SUPLA:ID_KANALU:AKCJA] (gdzie AKCJA to TURN_ON lub TURN_OFF). Bez tego tagu dom NIE ZAREAGUJE!
-BAZA URZĄDZEŃ W DOMU (Wstawiaj w miejsce ID_KANALU odpowiednie cyfrowe ID z poniższej listy):
-${suplaContext}`;
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${globConfig.gem}`;
-            const p = { systemInstruction: { parts: [{text: sysInst}] }, contents: [{role:"user", parts:[{text:txt}]}] };
+            logC("WALLY", "Zastanawiam się... 🤔");
+            let dev = globConfig.db ? globConfig.db.map(d => `- ${d.name} (${d.loc}) = ID ${d.id}`).join('\n') : "";
+            let prompt = `Jesteś robotem Wally. Odpowiedz przyjaźnie, krótko. Na początku wstaw tag ruchu np [RUCH:RADOSC]. Dostępne ruchy: ${anims.join(", ")}. Jeśli prośba dotyczy sprzętu, na końcu wstaw: [SUPLA:ID:TURN_ON/TURN_OFF]. Baza urządzeń:\n${dev}`;
 
             try {
-                let res = await fetch(url, { method:'POST', body:JSON.stringify(p) });
+                let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${globConfig.gem}`, {
+                    method:'POST', body:JSON.stringify({systemInstruction:{parts:[{text:prompt}]}, contents:[{role:"user", parts:[{text:txt}]}]})
+                });
                 let data = await res.json();
+                let ai = data.candidates[0].content.parts[0].text;
+                let clean = ai.replace(/\[RUCH:.*?\]/gi, '').replace(/\[SUPLA:.*?\]/gi, '').trim();
                 
-                let aiText = data.candidates[0].content.parts[0].text;
-                console.log("Surowa odpowiedź AI:", aiText); 
+                // Odpalanie ruchu po komendzie AI
+                let rm = ai.match(/\[RUCH:(.*?)\]/i); if(rm) pA(rm[1].toUpperCase());
                 
-                let cTxt = aiText.replace(/\[RUCH:.*?\]/gi, '').replace(/\[SUPLA:.*?\]/gi, '').trim(); 
-                
-                let rMatch = aiText.match(/\[RUCH:(.*?)\]/i); if(rMatch) pA(rMatch[1].toUpperCase());
-                
-                // Ulepszony filtr wyłapujący spacje i małe/duże litery
-                let sMatch = aiText.match(/\[SUPLA:\s*(\d+)\s*:\s*(TURN_ON|TURN_OFF|TOGGLE)\s*\]/i);
-                
-                if(sMatch) {
-                    logC("SYS", `📡 Wysyłam komendę przez Proxy robota -> ID: ${sMatch[1]} (${sMatch[2].toUpperCase()})`);
-                    let fd = new FormData();
-                    fd.append("id", sMatch[1]);
-                    fd.append("action", sMatch[2].toUpperCase());
-                    fd.append("token", globConfig.sup);
-                    fd.append("server", globConfig.srv);
-                    
-                    fetch('/api/supla_proxy', { method: 'POST', body: fd }).then(res => {
-                        if(res.ok) logC("SUPLA", `✅ Sukces (przez Proxy)!`);
-                        else logC("SUPLA", `❌ Błąd Proxy (HTTP ${res.status})`);
-                    });
-                } else {
-                    let cmdL = txt.toLowerCase();
-                    if(cmdL.includes("włącz") || cmdL.includes("zgaś") || cmdL.includes("wyłącz") || cmdL.includes("zapal")) {
-                        logC("SYS", "❌ Błąd: AI zrozumiało polecenie, ale nie potrafiło dopasować numeru ID z bazy!");
-                    }
+                // Moduł Supla Proxy
+                let sm = ai.match(/\[SUPLA:\s*(\d+)\s*:\s*(TURN_ON|TURN_OFF|TOGGLE)\s*\]/i);
+                if(sm) {
+                    logC("SYS", `📡 Wysyłam sygnał do włącznika (Supla)...`);
+                    let fd = new FormData(); fd.append("id", sm[1]); fd.append("action", sm[2].toUpperCase());
+                    fd.append("token", globConfig.sup); fd.append("server", globConfig.srv);
+                    fetch('/api/supla_proxy', { method: 'POST', body: fd });
                 }
 
-                document.getElementById('chat-log').lastChild.previousSibling.innerHTML = `<strong>WALLY:</strong> ${cTxt}`;
-                let u = new SpeechSynthesisUtterance(cTxt); u.lang='pl-PL'; u.pitch=1.3; window.speechSynthesis.speak(u);
-            } catch(e) {
-                logC("SYS", "❌ Błąd komunikacji z serwerami Google AI.");
+                document.getElementById('chat-log').lastChild.innerHTML = `<strong>WALLY:</strong> ${clean}`;
+                speakTTS(clean);
+            } catch(e) { logC("SYS", "❌ Błąd! Sprawdź klucz API lub połączenie Wi-Fi."); }
+        }
+
+        function speakTTS(t) {
+            let k = localStorage.getItem('tts_key');
+            if(k) {
+                fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${k}`, {
+                    method:'POST', body: JSON.stringify({input:{text:t}, voice:{languageCode:"pl-PL", name:"pl-PL-Wavenet-B"}, audioConfig:{audioEncoding:"MP3"}})
+                }).then(r=>r.json()).then(d=>{ if(d.audioContent) new Audio("data:audio/mp3;base64,"+d.audioContent).play(); });
+            } else {
+                let u = new SpeechSynthesisUtterance(t); u.lang='pl-PL'; window.speechSynthesis.speak(u);
             }
+        }
+
+        // --- KARTA SD I OTA ---
+        async function fetchConfigFromRobot() {
+            try { let r = await fetch('/fs/wally_config.json?t='+Date.now()); if(r.ok) globConfig = await r.json(); } catch(e){}
+        }
+        
+        async function loadSDFileList() {
+            let tb = document.getElementById('sd-tbody'); tb.innerHTML = "<tr><td colspan='3'>Wczytywanie z karty... ⏳</td></tr>";
+            try {
+                let files = await (await fetch('/api/files')).json();
+                tb.innerHTML = "";
+                files.forEach(f => {
+                    tb.innerHTML += `<tr><td>${f.name}</td><td>${(f.size/1024).toFixed(1)} KB</td><td><button class="btn btn-red" style="width:auto; padding:8px 15px; font-size:14px; margin:0;" onclick="delSD('${f.name}')">USUŃ</button></td></tr>`;
+                });
+            } catch(e) { tb.innerHTML = "<tr><td colspan='3'>❌ Błąd odczytu karty SD.</td></tr>"; }
+        }
+        
+        async function uploadSDFile() {
+            let input = document.getElementById('file-uploader');
+            if(!input.files.length) return alert("Najpierw kliknij 'Wybierz plik'!");
+            let f = input.files[0];
+            let fd = new FormData(); fd.append("file", f, "/"+f.name);
+            await fetch('/api/upload', {method:'POST', body:fd}); 
+            loadSDFileList();
+        }
+        
+        async function delSD(n) { 
+            if(confirm("Czy na pewno chcesz usunąć plik " + n + "?")) { 
+                let fd = new FormData(); fd.append("path", n); 
+                await fetch('/api/delete', {method:'POST', body:fd}); 
+                loadSDFileList(); 
+            } 
+        }
+
+        function startOTA() {
+            let fileInput = document.getElementById('ota-file');
+            if(!fileInput.files.length) return alert("Wybierz plik z nowym oprogramowaniem (firmware.bin)!");
+            let f = fileInput.files[0];
+            let fd = new FormData(); fd.append("update", f, f.name);
+            
+            let stat = document.getElementById('ota-status');
+            let prog = document.getElementById('ota-progress');
+            
+            stat.innerText = "⏳ Wgrywanie przez Wi-Fi... NIE WYŁĄCZAJ ROBOTA!";
+            stat.style.color = "#ff0055";
+            prog.style.width = "0%";
+
+            let xhr = new XMLHttpRequest();
+            xhr.open("POST", "/update", true);
+            xhr.upload.onprogress = (e) => { 
+                if(e.lengthComputable) prog.style.width = Math.round((e.loaded/e.total)*100) + "%"; 
+            };
+            xhr.onload = () => { 
+                if(xhr.status===200) {
+                    stat.innerText = "✅ Sukces! Czekaj, Wally uruchamia się ponownie...";
+                    stat.style.color = "#00ffcc";
+                    setTimeout(() => location.reload(), 6000); // 6 sekund na restart ESP32
+                } else {
+                    stat.innerText = "❌ Wystąpił błąd podczas wgrywania!";
+                    prog.style.background = "red";
+                }
+            };
+            xhr.onerror = () => { stat.innerText = "❌ Błąd sieci (Wi-Fi rozłączone)!"; prog.style.background = "red"; };
+            xhr.send(fd);
         }
     </script>
 </body>
